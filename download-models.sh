@@ -64,12 +64,13 @@ Choose a model to download:
 7) NSFW Lessons Models  (Adult Content)
 8) Wan 2.2 T2V Models   (Text-to-Video)
 9) Wan 2.2 I2V Models   (Image-to-Video)
-9) Exit
+10) Stable Diffusion 3.5 Base (ComfyUI)
+11) Exit
 
 ================================================
 EOF
     echo
-    read -rp "Enter your choice (1-10): " choice
+    read -rp "Enter your choice (1-11): " choice
     echo
 
     case "$choice" in
@@ -146,11 +147,19 @@ EOF
             fi
             pause ;;
         10) 
+            echo "🚀 Running Stable Diffusion 3.5 Base downloader…"
+            if [[ -f "Download_stable_diffusion_3_5_base.py" ]]; then
+                "$PYTHON" Download_stable_diffusion_3_5_base.py
+            else
+                echo "❌ Error: Download_stable_diffusion_3_5_base.py not found in current directory."
+            fi
+            pause ;;
+        11) 
             echo "✅ Exiting..."
             echo "Thank you for using the AI Model Downloader!"
             exit 0 ;;
         *) 
-            echo "❌ Invalid choice '$choice'. Please enter a number between 1-9."
+            echo "❌ Invalid choice '$choice'. Please enter a number between 1-11."
             pause ;;
     esac
 done
