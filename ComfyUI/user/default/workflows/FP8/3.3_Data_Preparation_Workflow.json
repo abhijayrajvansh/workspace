@@ -1,0 +1,128 @@
+{
+  "id": "59592004-d7f0-472d-847b-de0ab61caed0",
+  "revision": 0,
+  "last_node_id": 17,
+  "last_link_id": 24,
+  "nodes": [
+    {
+      "id": 17,
+      "type": "SimpleLLMCaptionLoader",
+      "pos": [
+        -505.65692138671875,
+        20.387096405029297
+      ],
+      "size": [
+        438.89044189453125,
+        105.40721893310547
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LLM_PIPELINE",
+          "type": "LLM_PIPELINE",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SimpleLLMCaptionLoader",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.2.1"
+        }
+      },
+      "widgets_values": [
+        "AUTO-DOWNLOAD: Llama-3.1-8B-Lexi-Uncensored-V2-nf4",
+        true
+      ]
+    },
+    {
+      "id": 16,
+      "type": "SimpleLLMCaptionBatch",
+      "pos": [
+        -26.872791290283203,
+        19.85511016845703
+      ],
+      "size": [
+        519.4142456054688,
+        406.235595703125
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "pipeline",
+          "type": "LLM_PIPELINE",
+          "link": 24
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SimpleLLMCaptionBatch",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.2.1"
+        }
+      },
+      "widgets_values": [
+        "",
+        "",
+        "Training Prompt",
+        "medium-length",
+        0.7,
+        300,
+        true,
+        "",
+        "lady",
+        "",
+        "large breasts",
+        true,
+        false,
+        "",
+        ""
+      ]
+    }
+  ],
+  "links": [
+    [
+      24,
+      17,
+      0,
+      16,
+      0,
+      "LLM_PIPELINE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "ds": {
+      "scale": 1.2839025177495065,
+      "offset": [
+        873.0013063434168,
+        208.1917718378606
+      ]
+    },
+    "frontendVersion": "1.25.11",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
