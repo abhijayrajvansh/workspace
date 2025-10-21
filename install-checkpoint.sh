@@ -1,12 +1,57 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# download-sdxl.sh — Download requested Civitai checkpoint into ComfyUI
+# install-checkpoint.sh — Download a Civitai checkpoint into ComfyUI.
 # Usage:
-#   ./download-sdxl.sh
+#   ./install-checkpoint.sh
 
-MODEL_URL="https://civitai.com/api/download/models/1920523?type=Model&format=SafeTensor&size=pruned&fp=fp16"
-MODEL_FILE="epiCRealism-XL"
+DEFAULT_MODEL_URL="https://civitai.com/api/download/models/1920523?type=Model&format=SafeTensor&size=pruned&fp=fp16"
+
+read -rp "Enter Civitai checkpoint download URL [${DEFAULT_MODEL_URL}]: " USER_MODEL_URL
+MODEL_URL="${USER_MODEL_URL:-$DEFAULT_MODEL_URL}"
+
+if [[ -z "${MODEL_URL}" ]]; then
+  echo "❌ A Civitai download URL is required."
+  exit 1
+fi
+
+detect_filename() {
+  local url="$1"
+  local header
+  header=$(curl -sI -L "$url" | tr -d '\r')
+  CURL_HEADER="$header" CURL_URL="$url" python3 - <<'PY'
+import os
+import sys
+import urllib.parse
+import re
+
+header = os.environ.get("CURL_HEADER", "")
+url = os.environ.get("CURL_URL", "")
+filename = ""
+for line in header.splitlines():
+    if line.lower().startswith("content-disposition:"):
+        value = line.split(":", 1)[1]
+        match = re.search(r"filename\*=([^;]+)", value, flags=re.I)
+        if match:
+            candidate = match.group(1)
+            if "''" in candidate:
+                candidate = candidate.split("''", 1)[1]
+            filename = urllib.parse.unquote(candidate.strip('"'))
+            break
+        match = re.search(r"filename=\"?([^";]+)\"?", value, flags=re.I)
+        if match:
+            filename = match.group(1)
+            break
+if not filename:
+    parsed = urllib.parse.urlparse(url)
+    filename = os.path.basename(parsed.path.rstrip('/'))
+if not filename:
+    filename = "model.safetensors"
+print(filename)
+PY
+}
+
+MODEL_FILE="$(detect_filename "${MODEL_URL}")"
 
 # ComfyUI path relative to where this script is run
 COMFY_DIR="./ComfyUI"
