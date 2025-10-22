@@ -53,40 +53,35 @@ esac
 # Create destination directory
 mkdir -p "${DEST_DIR}"
 
-# Generate filename from URL with .safetensors extension
-generate_filename() {
-  local url="$1"
-  local model_type="$2"
+# Get output filename from user
+echo ""
+read -rp "Enter output filename (without extension): " USER_FILENAME
+if [[ -z "${USER_FILENAME}" ]]; then
+  echo "❌ Filename is required."
+  exit 1
+fi
+
+# Validate filename (remove invalid characters and ensure it's safe)
+validate_filename() {
+  local filename="$1"
   
-  # Extract model ID from Civitai URLs
-  if [[ "${url}" == *"civitai.com"* ]]; then
-    local model_id=$(echo "${url}" | grep -o 'models/[0-9]*' | cut -d'/' -f2)
-    if [[ -n "${model_id}" ]]; then
-      echo "${model_type}_${model_id}.safetensors"
-      return
-    fi
+  # Remove invalid characters for filesystem
+  filename=$(echo "${filename}" | sed 's/[<>:"/\\|?*]//g')
+  
+  # Remove leading/trailing spaces and dots
+  filename=$(echo "${filename}" | sed 's/^[[:space:].]*//' | sed 's/[[:space:]]*$//')
+  
+  # Ensure filename is not empty after cleaning
+  if [[ -z "${filename}" ]]; then
+    echo "❌ Invalid filename. Please use only valid characters."
+    exit 1
   fi
   
-  # Try to extract meaningful name from URL path
-  local basename_url=$(basename "${url}" | cut -d'?' -f1)
-  if [[ -n "${basename_url}" && "${basename_url}" != "/" ]]; then
-    # Remove existing extension and add .safetensors
-    local name_without_ext="${basename_url%.*}"
-    if [[ -n "${name_without_ext}" ]]; then
-      echo "${name_without_ext}.safetensors"
-      return
-    fi
-  fi
-  
-  # Fallback to default names
-  if [[ "${model_type}" == "checkpoint" ]]; then
-    echo "model.safetensors"
-  else
-    echo "lora.safetensors"
-  fi
+  echo "${filename}"
 }
 
-FILENAME=$(generate_filename "${MODEL_URL}" "${MODEL_TYPE}")
+CLEAN_FILENAME=$(validate_filename "${USER_FILENAME}")
+FILENAME="${CLEAN_FILENAME}.safetensors"
 
 DEST_PATH="${DEST_DIR}/${FILENAME}"
 
