@@ -1,90 +1,133 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# install-checkpoint.sh — Download a Civitai checkpoint into ComfyUI.
-# Usage:
-#   ./install-checkpoint.sh
+# install-checkpoint.sh — Simple script to download models into ComfyUI
+# Usage: ./install-checkpoint.sh
 
-DEFAULT_MODEL_URL="https://civitai.com/api/download/models/1920523?type=Model&format=SafeTensor&size=pruned&fp=fp16"
+echo "🤖 ComfyUI Model Installer"
+echo "=========================="
 
-read -rp "Enter Civitai checkpoint download URL [${DEFAULT_MODEL_URL}]: " USER_MODEL_URL
-MODEL_URL="${USER_MODEL_URL:-$DEFAULT_MODEL_URL}"
-
+# Get model URL
+read -rp "Enter model download URL: " MODEL_URL
 if [[ -z "${MODEL_URL}" ]]; then
-  echo "❌ A Civitai download URL is required."
+  echo "❌ Model URL is required."
   exit 1
 fi
 
-detect_filename() {
-  local url="$1"
-  local header
-  header=$(curl -sI -L "$url" | tr -d '\r')
-  CURL_HEADER="$header" CURL_URL="$url" python3 - <<'PY'
-import os
-import sys
-import urllib.parse
-import re
-
-header = os.environ.get("CURL_HEADER", "")
-url = os.environ.get("CURL_URL", "")
-filename = ""
-for line in header.splitlines():
-    if line.lower().startswith("content-disposition:"):
-        value = line.split(":", 1)[1]
-        match = re.search(r"filename\*=([^;]+)", value, flags=re.I)
-        if match:
-            candidate = match.group(1)
-            if "''" in candidate:
-                candidate = candidate.split("''", 1)[1]
-            filename = urllib.parse.unquote(candidate.strip('"'))
-            break
-        match = re.search(r"filename=\"?([^";]+)\"?", value, flags=re.I)
-        if match:
-            filename = match.group(1)
-            break
-if not filename:
-    parsed = urllib.parse.urlparse(url)
-    filename = os.path.basename(parsed.path.rstrip('/'))
-if not filename:
-    filename = "model.safetensors"
-print(filename)
-PY
-}
-
-MODEL_FILE="$(detect_filename "${MODEL_URL}")"
-
-# ComfyUI path relative to where this script is run
-COMFY_DIR="./ComfyUI"
-DEST_DIR="${COMFY_DIR}/models/checkpoints"
-
-# Create destination directory if missing
-mkdir -p "${DEST_DIR}"
-
-# Temporary download target (mktemp provides a unique file and works on macOS/Linux)
-TMP_FILE="$(mktemp)"
-cleanup() {
-  rm -f "${TMP_FILE}"
-}
-trap cleanup EXIT
-
-echo "⬇️  Downloading ${MODEL_FILE} from Civitai..."
-curl -L --fail -C - -o "${TMP_FILE}" "${MODEL_URL}"
-
-# Verify the file isn’t empty
-if [[ ! -s "${TMP_FILE}" ]]; then
-  echo "❌ Download failed or file empty."
-  exit 2
+# Check if this is a Civitai URL and get API token if needed
+CIVITAI_TOKEN=""
+if [[ "${MODEL_URL}" == *"civitai.com"* ]]; then
+  echo ""
+  echo "🔑 This is a Civitai URL. Some models require authentication."
+  read -rp "Enter your Civitai API token (optional, press Enter to skip): " CIVITAI_TOKEN
+  echo "💡 Tip: Get your API token from https://civitai.com/user/account"
 fi
 
-DEST_PATH="${DEST_DIR}/${MODEL_FILE}"
+# Get model type
+echo ""
+echo "Select model type:"
+echo "1) Checkpoint"
+echo "2) LoRA"
+echo ""
+read -rp "Enter choice (1 or 2): " MODEL_TYPE_CHOICE
+if [[ -z "${MODEL_TYPE_CHOICE}" ]]; then
+  echo "❌ Model type choice is required."
+  exit 1
+fi
+
+case "${MODEL_TYPE_CHOICE}" in
+  1)
+    MODEL_TYPE="checkpoint"
+    DEST_DIR="./ComfyUI/models/checkpoints"
+    ;;
+  2)
+    MODEL_TYPE="lora"
+    DEST_DIR="./ComfyUI/models/loras"
+    ;;
+  *)
+    echo "❌ Invalid choice. Please select 1 or 2."
+    exit 1
+    ;;
+esac
+
+# Create destination directory
+mkdir -p "${DEST_DIR}"
+
+# Generate filename from URL with .safetensors extension
+generate_filename() {
+  local url="$1"
+  local model_type="$2"
+  
+  # Extract model ID from Civitai URLs
+  if [[ "${url}" == *"civitai.com"* ]]; then
+    local model_id=$(echo "${url}" | grep -o 'models/[0-9]*' | cut -d'/' -f2)
+    if [[ -n "${model_id}" ]]; then
+      echo "${model_type}_${model_id}.safetensors"
+      return
+    fi
+  fi
+  
+  # Try to extract meaningful name from URL path
+  local basename_url=$(basename "${url}" | cut -d'?' -f1)
+  if [[ -n "${basename_url}" && "${basename_url}" != "/" ]]; then
+    # Remove existing extension and add .safetensors
+    local name_without_ext="${basename_url%.*}"
+    if [[ -n "${name_without_ext}" ]]; then
+      echo "${name_without_ext}.safetensors"
+      return
+    fi
+  fi
+  
+  # Fallback to default names
+  if [[ "${model_type}" == "checkpoint" ]]; then
+    echo "model.safetensors"
+  else
+    echo "lora.safetensors"
+  fi
+}
+
+FILENAME=$(generate_filename "${MODEL_URL}" "${MODEL_TYPE}")
+
+DEST_PATH="${DEST_DIR}/${FILENAME}"
+
+# Check if file already exists
 if [[ -f "${DEST_PATH}" ]]; then
-  echo "🟡 Existing model found at ${DEST_PATH}, backing up..."
+  echo "🟡 File already exists: ${DEST_PATH}"
+  read -rp "Overwrite? (y/N): " OVERWRITE
+  if [[ ! "${OVERWRITE}" =~ ^[Yy]$ ]]; then
+    echo "❌ Download cancelled."
+    exit 0
+  fi
+  echo "📝 Backing up existing file..."
   mv "${DEST_PATH}" "${DEST_PATH}.bak.$(date +%Y%m%d%H%M%S)"
 fi
 
-mv "${TMP_FILE}" "${DEST_PATH}"
-trap - EXIT
-sync
+# Download the model
+echo ""
+echo "⬇️  Downloading ${MODEL_TYPE} to ${DEST_PATH}..."
 
-echo "✅ Checkpoint saved to: ${DEST_PATH}"
-echo "You can now open ComfyUI and select it under 'Models → Checkpoints'."
+# Prepare curl command with optional authorization
+CURL_CMD="curl -L --fail -o \"${DEST_PATH}\""
+if [[ -n "${CIVITAI_TOKEN}" ]]; then
+  CURL_CMD="curl -L --fail -H \"Authorization: Bearer ${CIVITAI_TOKEN}\" -o \"${DEST_PATH}\""
+fi
+
+# Execute download
+if eval "${CURL_CMD} \"${MODEL_URL}\""; then
+  echo ""
+  echo "✅ Successfully downloaded ${MODEL_TYPE}!"
+  echo "📁 Saved to: ${DEST_PATH}"
+  echo ""
+  echo "You can now use this ${MODEL_TYPE} in ComfyUI."
+else
+  echo "❌ Download failed."
+  echo ""
+  if [[ "${MODEL_URL}" == *"civitai.com"* ]]; then
+    echo "💡 Possible solutions:"
+    echo "   • The model may require a Civitai account and API token"
+    echo "   • Get your API token from: https://civitai.com/user/account"
+    echo "   • Some models are restricted and require special permissions"
+    echo "   • Try downloading manually from the web interface first"
+  fi
+  exit 2
+fi
