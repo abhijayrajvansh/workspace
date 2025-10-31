@@ -28,11 +28,79 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: ./auto-install-models.sh <config.json> [base-directory]
+Usage: ./auto-install-models.sh [options] <config.json> [base-directory]
   config.json     Path to a JSON array describing model downloads.
   base-directory  Optional root for relative destinations (defaults to script directory).
+
+Options:
+  -h, --help                         Show this help message and exit.
+  --show-example-format-for-json     Print an example JSON config and exit.
 USAGE
 }
+
+show_example_format_for_json() {
+  cat <<'JSON'
+[
+  {
+    "url": "https://huggingface.co/owner/repo/resolve/main/model.safetensors",
+    "filename": "model.safetensors",
+    "dest": "ComfyUI/models/checkpoints"
+  }
+]
+JSON
+}
+
+SHOW_HELP=false
+SHOW_EXAMPLE=false
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      SHOW_HELP=true
+      shift
+      ;;
+    --show-example-format-for-json)
+      SHOW_EXAMPLE=true
+      shift
+      ;;
+    --)
+      shift
+      POSITIONAL_ARGS+=("$@")
+      break
+      ;;
+    -*)
+      echo "❌ Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#POSITIONAL_ARGS[@]} -gt 0 ]]; then
+  set -- "${POSITIONAL_ARGS[@]}"
+else
+  set --
+fi
+
+if [[ "$SHOW_HELP" == "true" ]]; then
+  usage
+  if [[ "$SHOW_EXAMPLE" == "true" ]]; then
+    echo
+    echo "Example JSON config:"
+    show_example_format_for_json
+  fi
+  exit 0
+fi
+
+if [[ "$SHOW_EXAMPLE" == "true" ]]; then
+  show_example_format_for_json
+  exit 0
+fi
 
 if [[ $# -lt 1 ]]; then
   echo "❌ Missing config file path." >&2
