@@ -17,5 +17,9 @@ cd /workspace/ComfyUI/user/default || { echo "Directory not found!"; exit 1; }
 echo "Cloning workflows repository..."
 git clone https://github.com/abhijayrajvansh/workflows
 
+# Step 5: Move models-config folder to workspace directory
+echo "Moving models-config folder to /workspace..."
+mv /workspace/ComfyUI/user/default/workflows/models-config /workspace/ || { echo "models-config folder not found!"; exit 1; }
+
 echo "✅ All steps executed successfully!"
 
